@@ -1,103 +1,123 @@
-✅ README for GitLab Docker with External PostgreSQL
-📌 Project: GitLab Docker (External PostgreSQL)
+# GitLab Docker Deployment with External PostgreSQL
 
-This repository contains a GitLab Docker deployment configured to use an external PostgreSQL database.
+This repository provides a ready-to-use [Docker Compose](https://docs.docker.com/compose/) setup for running GitLab CE with an **external PostgreSQL database**. It is designed for production-style deployments with persistent storage and easy configuration.
 
-🚀 Features
+---
 
-✔️ GitLab running in Docker
-✔️ External PostgreSQL database
-✔️ Configured for production-style setup
-✔️ Data stored on local volume
+## 🚀 Features
 
-🧩 Requirements
+- GitLab CE running in Docker
+- Uses an external PostgreSQL database (not bundled)
+- Data stored on local Docker volumes
+- Easy configuration and reconfiguration
+- Example for production-like environments
 
-Docker
+---
 
-Docker Compose (optional)
+## 🧩 Requirements
 
-External PostgreSQL server reachable from GitLab container
+- Docker
+- Docker Compose
+- External PostgreSQL server (reachable from the GitLab container)
+- Linux host (Ubuntu/Debian recommended)
 
-Ubuntu / Debian host recommended
+---
 
-📌 Configuration (GitLab)
-🔧 GitLab Configuration File
+## 📦 Setup & Configuration
 
-The GitLab configuration is stored in:
+1. **Clone this repository:**
+	 ```sh
+	 git clone <this-repo-url>
+	 cd gitlab
+	 ```
 
-/etc/gitlab/gitlab.rb
+2. **Edit `docker-compose.yml` as needed:**
+	 - Update `gitlab_rails['db_host']`, `db_username`, `db_password`, etc. in the `environment` section to match your PostgreSQL server.
+	 - Example (replace with your actual values):
+		 ```yaml
+		 gitlab_rails['db_host'] = '<YOUR_PG_HOST>'
+		 gitlab_rails['db_port'] = 5432
+		 gitlab_rails['db_database'] = '<YOUR_PG_DATABASE>'
+		 gitlab_rails['db_username'] = '<YOUR_PG_USER>'
+		 gitlab_rails['db_password'] = '<YOUR_PG_PASSWORD>'
+		 ```
+- **Test DB connection from container:**
+	```sh
+	docker exec -it gitlab bash -lc "psql -h <PG_HOST> -U <PG_USER> -d <PG_DB> -c '\l'"
+	# Example: docker exec -it gitlab bash -lc "psql -h 192.168.1.100 -U gitlabuser -d gitlabdb -c '\l'"
+	```
 
-✅ External PostgreSQL settings
-gitlab_rails['db_adapter'] = 'postgresql'
-gitlab_rails['db_encoding'] = 'utf8'
-gitlab_rails['db_host'] = '192.168.68.176'
-gitlab_rails['db_port'] = 5432
-gitlab_rails['db_database'] = 'gitlabhq_production'
-gitlab_rails['db_username'] = 'postgres'
-gitlab_rails['db_password'] = 'dsdsd#1'
+3. **Start GitLab:**
+	 ```sh
+	 docker compose up -d
+	 ```
 
-🛠️ Steps to Verify External PostgreSQL
-✅ Check DB host configuration
-docker exec -it gitlab bash -lc "grep -i \"db_host\" -n /etc/gitlab/gitlab.rb"
+4. **Access GitLab:**
+	 - Web: [http://localhost:8080](http://localhost:8080) (or your configured hostname)
+	 - SSH: Port 2224 (as mapped in `docker-compose.yml`)
 
+---
 
-Expected output:
+## ⚙️ PostgreSQL Server Configuration
 
-gitlab_rails['db_host'] = '192.168.68.176'
+Ensure your PostgreSQL server allows remote connections:
 
-🧪 Test DB Connection
-docker exec -it gitlab bash -lc "psql -h 192.168.68.176 -U postgres -d gitlabhq_production -c '\l'"
+1. **Edit `postgresql.conf`:**
+	 ```
+	 listen_addresses = '*'
+	 ```
+2. **Edit `pg_hba.conf`:**
+	 ```
+	 host all all 0.0.0.0/0 md5
+	 ```
+3. **Restart PostgreSQL:**
+	 ```sh
+	 sudo systemctl restart postgresql
+	 ```
 
-🔄 Reconfigure GitLab After Change
+---
 
-Whenever you change gitlab.rb, run:
+## 🛠️ Useful Commands
 
-docker exec -it gitlab gitlab-ctl reconfigure
-docker exec -it gitlab gitlab-ctl restart
+- **Check DB host in config:**
+	```sh
+	docker exec -it gitlab bash -lc "grep -i 'db_host' /etc/gitlab/gitlab.rb"
+	```
+- **Test DB connection from container:**
+	```sh
+	docker exec -it gitlab bash -lc "psql -h <PG_HOST> -U <PG_USER> -d <PG_DB> -c '\l'"
+	```
+- **Reconfigure GitLab after config changes:**
+	```sh
+	docker exec -it gitlab gitlab-ctl reconfigure
+	docker exec -it gitlab gitlab-ctl restart
+	```
+- **Fix permissions if you change volumes:**
+	```sh
+	sudo chown -R git:git /var/opt/gitlab/git-data
+	sudo chmod -R 2770 /var/opt/gitlab/git-data/repositories
+	```
+- **Check data directory ownership:**
+	```sh
+	stat -c "%U:%G %n" /var/opt/gitlab/git-data/repositories
+	# Should output: git:git /var/opt/gitlab/git-data/repositories
+	```
 
-⚠️ Permissions Fix (if you change volume)
+---
 
-If you change the GitLab data volume, GitLab must have correct ownership:
+## 📝 Notes & Troubleshooting
 
-sudo chown -R git:git /var/opt/gitlab/git-data
-sudo chmod -R 2770 /var/opt/gitlab/git-data/repositories
+- The default GitLab `git` user UID is usually 998.
+- Ensure your PostgreSQL server is accessible from the Docker host network.
+- If you encounter issues, check logs with:
+	```sh
+	docker exec -it gitlab gitlab-ctl tail
+	```
+- After any config change, always reconfigure and restart GitLab.
+- For more help, see [GitLab Docker documentation](https://docs.gitlab.com/omnibus/docker/).
 
-✅ Check GitLab Data Directory Ownership
-stat -c "%U:%G %n" /var/opt/gitlab/git-data/repositories
+---
 
+## 📬 Support
 
-Expected output:
-
-git:git /var/opt/gitlab/git-data/repositories
-
-📌 Notes
-
-The GitLab git user UID is usually 998.
-
-External PostgreSQL must allow remote connections.
-
-Make sure pg_hba.conf and postgresql.conf are properly configured.
-
-🔐 PostgreSQL Remote Access Settings
-
-On PostgreSQL server:
-
-postgresql.conf
-listen_addresses = '*'
-
-pg_hba.conf
-host all all 0.0.0.0/0 md5
-
-
-Then restart PostgreSQL:
-
-sudo systemctl restart postgresql
-
-📌 Support
-
-If you face any issue, run:
-
-docker exec -it gitlab gitlab-ctl reconfigure
-
-
-and share the error log.
+If you face any issues, please open an issue in this repository or consult the official GitLab documentation.
